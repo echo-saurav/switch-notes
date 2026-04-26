@@ -1,33 +1,30 @@
 import {App, Instruction, Notice, SuggestModal} from 'obsidian';
 import SwitchFile from "./main";
 
-export interface FileInterface {
+export interface FileI {
 	name: string;
 	path: string;
+	rank: number;
+	lastOpened: string;
+	pined: boolean;
 }
 
 
-export class SearchModel extends SuggestModal<FileInterface> {
+export class SearchModel extends SuggestModal<FileI> {
 	private plugin: SwitchFile;
 
 	constructor(app: App, plugin: SwitchFile) {
 		super(app);
 		this.plugin = plugin;
 		this.setPlaceholder('Search');
-		this.setInstructions([
-			{
-				command:'cmd+x',
-				purpose:'search',
-			},
-			{
-				command:'cmd+x',
-				purpose:'search',
-			}
-		])
 	}
 
-	getSuggestions(query: string): FileInterface[] | Promise<FileInterface[]> {
-
+	getSuggestions(query: string): FileI[] | Promise<FileI[]> {
+		if (query === '') {
+			return this.plugin.lastOpenedList.filter((file) =>
+				file.name.toLowerCase().includes(query.toLowerCase())
+			);
+		}
 
 		return this.plugin.getAllFiles().filter((file) =>
 			file.name.toLowerCase().includes(query.toLowerCase())
@@ -35,16 +32,16 @@ export class SearchModel extends SuggestModal<FileInterface> {
 	}
 
 	// Renders each suggestion item.
-	renderSuggestion(file: FileInterface, el: HTMLElement) {
+	renderSuggestion(file: FileI, el: HTMLElement) {
+
 		el.createEl('div', {text: file.name});
-		el.createEl('small', {text: file.path});
+		// el.createEl('small', {text: file.path});
 	}
 
 	// Perform action on the selected suggestion.
-	onChooseSuggestion(file: FileInterface, evt: MouseEvent | KeyboardEvent) {
-		new Notice(`Selected ${file.name}`);
+	onChooseSuggestion(file: FileI, evt: MouseEvent | KeyboardEvent) {
+		void this.plugin.focusFile(file.path);
 	}
-
 
 
 }
