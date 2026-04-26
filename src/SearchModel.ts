@@ -20,14 +20,21 @@ export class SearchModel extends SuggestModal<QueryFile> {
 		return this.plugin.searchFiles(query);
 	}
 
-	buildHighlighted(text: string, positions: number[]) {
+	buildHighlighted(text: string, positions: number[], parentEl: HTMLElement) {
 		let out = "";
 
 		for (let i = 0; i < text.length; i++) {
 			if (positions.includes(i)) {
-				out += `<span class="search-match">${text[i]}</span>`;
+				parentEl.createEl("span", {
+					text: text[i],
+					cls: "search-match"
+				});
 			} else {
-				out += text[i];
+				const character = text[i];
+				if (character) {
+					parentEl.appendText(character);
+				}
+
 			}
 		}
 
@@ -37,11 +44,9 @@ export class SearchModel extends SuggestModal<QueryFile> {
 	// Renders each suggestion item.
 	renderSuggestion(queryFile: QueryFile, el: HTMLElement) {
 
-		// el.createEl('div', {text: queryFile.file.name});
-		// el.createEl('small', {text: file.path});
 		const title = el.createEl("div");
 		title.classList.add("search-container");
-		title.innerHTML = this.buildHighlighted(queryFile.file.basename, queryFile.position);
+		this.buildHighlighted(queryFile.file.basename, queryFile.position, title);
 	}
 
 	// Perform action on the selected suggestion.
