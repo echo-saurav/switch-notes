@@ -1,6 +1,6 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, SwitchFileSettings, SwitchFileSettingsTab} from "./settings";
-import {FileI, SearchModel} from "./SearchModel";
+import {FileI, QueryFile, SearchModel} from "./SearchModel";
 
 export default class SwitchFile extends Plugin {
 	settings: SwitchFileSettings;
@@ -21,13 +21,11 @@ export default class SwitchFile extends Plugin {
 			}
 		});
 
-
-		//
-		this.syncFiles();
-		this.registerOtherEvents();
+		this.registerEvents();
 	}
 
-	registerOtherEvents() {
+	// keep updated last opening timestamp
+	registerEvents() {
 		this.app.workspace.on('file-open', file => {
 			if (!file) return
 			const timestamp = Date.now();
@@ -47,66 +45,60 @@ export default class SwitchFile extends Plugin {
 		}));
 	}
 
-	syncFiles() {
-		this.app.vault.getFiles().map(file => {
-			const newFile = this.convertFileToFileI(file);
-			if (newFile) {
-				console.debug('sync all file', file);
-				this.fileIS.push(newFile);
+	searchFiles(query: string) {
+		const files = this.app.vault.getMarkdownFiles();
+		const matchedFiles: QueryFile[] = []
+
+		files.map(file => {
+			const positions = this.fuzzyMatch(file.name, query);
+			let score = 0;
+
+			if (file.name.startsWith(query)) {
+				score = 2;
+			} else {
+				score = 1;
+			}
+			// set a recency score
+			if (positions) {
+				score = score + Number(this.app.loadLocalStorage(file.path));
+				//
+				matchedFiles.push({
+					file:file,
+					score: score,
+					position: positions
+				});
 			}
 		})
 
-		this.registerEvent(this.app.vault.on('create', (file: TFile) => {
-			const newFile = this.convertFileToFileI(file);
-			if (newFile) {
-				console.debug('create', file);
-				this.fileIS.push(newFile);
-				this.cachedFiles.set(newFile, 0);
-			}
-
-		}));
-
-		this.registerEvent(this.app.vault.on('rename', (file: TFile, oldPath: string) => {
-			const removeFileI = this.fileIS.find(fileI => fileI.path === oldPath);
-			if (!removeFileI) return
-			// remove file
-			this.fileIS.remove(removeFileI);
-			// add new
-			const newFile = this.convertFileToFileI(file);
-			if (newFile) {
-				console.debug('rename', file);
-				this.fileIS.push(newFile);
-				this.cachedFiles.set(newFile, 0);
-			}
-
-		}));
-
-		this.registerEvent(this.app.vault.on('delete', (file: TFile) => {
-			const newFile = this.convertFileToFileI(file);
-			if (newFile) {
-				console.debug('delete', file);
-				this.fileIS.remove(newFile);
-				this.cachedFiles.delete(newFile);
-			}
-		}));
+		matchedFiles.sort((a, b) => b.score - a.score);
+		return matchedFiles;
 	}
 
-	getAllFiles() {
-		console.debug('getAllFiles', this.fileIS);
-		return this.fileIS;
-	}
+	fuzzyMatch(text: string, query: string) {
+		let t = 0, q = 0;
+		let positions: number[] = []
+		text = text.toLowerCase().trim();
+		query = query.toLowerCase().trim();
 
-	convertFileToFileI(file: TFile, rank = 0, pined = false, lastOpened = ""): FileI | undefined {
 
-		if (!file || file.extension !== 'md') return;
-		return {
-			name: file.basename,
-			path: file.path,
-			rank: rank,
-			pined: pined,
-			lastOpened: lastOpened
+		while (t < text.length && q < query.length) {
+			if (text[t] === query[q]) {
+				q++
+				positions.push(t);
+			}
+			if (text[t] === query[q]) q++;
+			t++;
+		}
+
+
+		if (q === query.length) {
+			return positions;
+		} else {
+			return false
 		}
 	}
+
+
 
 	async focusFile(path: string) {
 		const targetFile = this.app.vault.getAbstractFileByPath(path)
