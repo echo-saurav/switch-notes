@@ -1,14 +1,6 @@
 import {App, Instruction, Notice, SuggestModal, TFile} from 'obsidian';
 import SwitchFile from "./main";
 
-export interface FileI {
-	name: string;
-	path: string;
-	rank: number;
-	lastOpened: string;
-	pined: boolean;
-}
-
 export interface QueryFile {
 	file: TFile;
 	score: number;
@@ -26,22 +18,14 @@ export class SearchModel extends SuggestModal<QueryFile> {
 
 	getSuggestions(query: string): QueryFile[] | Promise<QueryFile[]> {
 		return this.plugin.searchFiles(query);
-		// if (query === '') {
-		// 	return this.plugin.lastOpenedList.filter((file) =>
-		// 		file.name.toLowerCase().includes(query.toLowerCase())
-		// 	);
-		// }
-		//
-		// return this.plugin.getAllFiles().filter((file) =>
-		// 	file.name.toLowerCase().includes(query.toLowerCase())
-		// );
 	}
+
 	buildHighlighted(text: string, positions: number[]) {
 		let out = "";
 
 		for (let i = 0; i < text.length; i++) {
 			if (positions.includes(i)) {
-				out += `<b class="cm-highlight">${text[i]}</b>`;
+				out += `<span class="search-match">${text[i]}</span>`;
 			} else {
 				out += text[i];
 			}
@@ -56,6 +40,7 @@ export class SearchModel extends SuggestModal<QueryFile> {
 		// el.createEl('div', {text: queryFile.file.name});
 		// el.createEl('small', {text: file.path});
 		const title = el.createEl("div");
+		title.classList.add("search-container");
 		title.innerHTML = this.buildHighlighted(queryFile.file.basename, queryFile.position);
 	}
 

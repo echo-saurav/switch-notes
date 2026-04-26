@@ -6,3 +6,9 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+.search-container{
+	overflow-wrap: break-word;
+}
+.search-match {
+	background: var(--text-highlight-bg);
+}

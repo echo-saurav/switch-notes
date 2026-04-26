@@ -1,17 +1,14 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, SwitchFileSettings, SwitchFileSettingsTab} from "./settings";
-import {FileI, QueryFile, SearchModel} from "./SearchModel";
+import { QueryFile, SearchModel} from "./SearchModel";
 
 export default class SwitchFile extends Plugin {
 	settings: SwitchFileSettings;
-	cachedFiles: Map<FileI, number>
-	fileIS: FileI[] = []
-	lastOpenedList: FileI[] = [];
 
 
 	async onload() {
 		await this.loadSettings();
-		this.addSettingTab(new SwitchFileSettingsTab(this.app, this));
+		// this.addSettingTab(new SwitchFileSettingsTab(this.app, this));
 
 		this.addCommand({
 			id: 'open-modal-search',
@@ -23,6 +20,52 @@ export default class SwitchFile extends Plugin {
 
 		this.registerEvents();
 	}
+
+	searchFiles(query: string) {
+		const files = this.app.vault.getMarkdownFiles();
+		const matchedFiles: QueryFile[] = []
+
+		files.map(file => {
+			const positions = this.fuzzyMatch(file.name, query);
+			let score = 0;
+			// TODO
+			// start with
+			// 100
+			// matched full word
+			// 90
+			// partial match
+			// 50
+			// Day
+			// Opened 1 days ago
+			// 70
+			// Opened 7 days ago
+			// 50
+			// Opened 30 days ago
+			// 30
+
+			// start with has high rank
+			if (file.name.startsWith(query)) {
+				score = 2;
+			} else {
+				score = 1;
+			}
+			// set a recency score
+			if (positions) {
+				score = score + Number(this.app.loadLocalStorage(file.path));
+				//
+				matchedFiles.push({
+					file:file,
+					score: score,
+					position: positions
+				});
+			}
+
+		})
+
+		matchedFiles.sort((a, b) => b.score - a.score);
+		return matchedFiles;
+	}
+
 
 	// keep updated last opening timestamp
 	registerEvents() {
@@ -45,34 +88,6 @@ export default class SwitchFile extends Plugin {
 		}));
 	}
 
-	searchFiles(query: string) {
-		const files = this.app.vault.getMarkdownFiles();
-		const matchedFiles: QueryFile[] = []
-
-		files.map(file => {
-			const positions = this.fuzzyMatch(file.name, query);
-			let score = 0;
-
-			if (file.name.startsWith(query)) {
-				score = 2;
-			} else {
-				score = 1;
-			}
-			// set a recency score
-			if (positions) {
-				score = score + Number(this.app.loadLocalStorage(file.path));
-				//
-				matchedFiles.push({
-					file:file,
-					score: score,
-					position: positions
-				});
-			}
-		})
-
-		matchedFiles.sort((a, b) => b.score - a.score);
-		return matchedFiles;
-	}
 
 	fuzzyMatch(text: string, query: string) {
 		let t = 0, q = 0;
@@ -86,7 +101,6 @@ export default class SwitchFile extends Plugin {
 				q++
 				positions.push(t);
 			}
-			if (text[t] === query[q]) q++;
 			t++;
 		}
 
