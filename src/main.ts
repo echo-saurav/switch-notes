@@ -22,7 +22,7 @@ export default class SwitchFile extends Plugin {
 	}
 
 	searchFiles(query: string) {
-		const files = this.app.vault.getMarkdownFiles();
+		const files = this.app.vault.getFiles();
 		const matchedFiles: QueryFile[] = []
 
 		files.map(file => {
