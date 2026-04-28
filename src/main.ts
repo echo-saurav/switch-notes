@@ -83,7 +83,7 @@ export default class SwitchFile extends Plugin {
 
 			// start with has high rank
 			if (file.name.startsWith(query)) {
-				score = 100;
+				score = 1000;
 			} else {
 				score = 1;
 			}
@@ -159,7 +159,8 @@ export default class SwitchFile extends Plugin {
 		text = text.toLowerCase().trim();
 		query = query.toLowerCase().trim();
 		//
-		let score = 0;
+		// let score = 0;
+		let charMatched = 0;
 		let gap = true;
 
 
@@ -168,14 +169,24 @@ export default class SwitchFile extends Plugin {
 				q++
 				positions.push(t);
 				// adding score
-				if (gap && t > score) {
-					score = score + 100;
+				if (gap && t > charMatched) {
+					// score = score + 300;
+					charMatched++;
 				}
 			} else {
 				gap = true;
 			}
 			t++;
 		}
+		let score = 0;
+		if (query.length === charMatched) {
+			score = 1000;
+		} else if (query.length / charMatched > .5) {
+			score = 400;
+		} else if (charMatched === 1) {
+			score = 1;
+		}
+
 		if (q === query.length) {
 			return {
 				positions: positions,
