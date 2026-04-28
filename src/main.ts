@@ -66,6 +66,32 @@ export default class SwitchFile extends Plugin {
 		return matchedFiles;
 	}
 
+	lastOpenedDayScore(file: TFile) {
+		let timestamp = Number(this.app.loadLocalStorage(file.path));
+
+		if (timestamp <= 0) {
+			timestamp = file.stat.mtime
+		}
+
+		const current_timestamp = Date.now();
+		const diff = current_timestamp - timestamp;
+		const days = diff / (1000 * 60 * 60 * 24)
+
+		// reduce score based on how far the day is
+
+		if (days > 0) {
+			return 10 / days;
+		} else if (days > 20) {
+			return 20 / days;
+		} else if (days > 30) {
+			return 30 / days;
+		} else {
+			return 50 / days;
+		}
+
+	}
+
+
 
 	// keep updated last opening timestamp
 	registerEvents() {
