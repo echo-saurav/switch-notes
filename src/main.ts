@@ -1,6 +1,6 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, SwitchFileSettings, SwitchFileSettingsTab} from "./settings";
-import { QueryFile, SearchModel} from "./SearchModel";
+import {QueryFile, SearchModel} from "./SearchModel";
 
 export default class SwitchFile extends Plugin {
 	settings: SwitchFileSettings;
@@ -8,7 +8,7 @@ export default class SwitchFile extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-		// this.addSettingTab(new SwitchFileSettingsTab(this.app, this));
+		this.addSettingTab(new SwitchFileSettingsTab(this.app, this));
 
 		this.addCommand({
 			id: 'open-modal-search',
@@ -26,7 +26,41 @@ export default class SwitchFile extends Plugin {
 		const matchedFiles: QueryFile[] = []
 
 		files.map(file => {
-			const positions = this.fuzzyMatch(file.name, query);
+			//
+			let ignoredFolder = false;
+			let doNotSuggestFolders = false;
+			const openedFilePath = this.getCurrentOpenFilePath();
+			if (openedFilePath && file.path === openedFilePath) {
+				return;
+			}
+
+			// ignore - keep low score
+			this.settings.ignoreFolders.split(',').forEach((folder) => {
+				if (file.path.startsWith(folder)) {
+					ignoredFolder = true;
+				}
+			});
+
+			// do not suggest
+			if (this.settings.doNotSuggestFolders) {
+
+				this.settings.doNotSuggestFolders.split(',').forEach((folder) => {
+					if (file.path.startsWith(folder)) {
+						doNotSuggestFolders = true;
+					}
+				});
+			}
+
+			if (doNotSuggestFolders) {
+				return;
+			}
+
+
+			//
+			const fuzzyResult = this.fuzzyMatch(file.name, query);
+			const positions = fuzzyResult.positions;
+
+
 			let score = 0;
 			// TODO
 			// start with
@@ -42,28 +76,33 @@ export default class SwitchFile extends Plugin {
 			// 50
 			// Opened 30 days ago
 			// 30
+			// ignore folder
+			// -100
+			// doNotSuggestFolders
+
 
 			// start with has high rank
 			if (file.name.startsWith(query)) {
-				score = 2;
+				score = 100;
 			} else {
 				score = 1;
 			}
 			// set a recency score
 			if (positions) {
-				score = score + Number(this.app.loadLocalStorage(file.path));
-				//
+				score = score + this.lastOpenedDayScore(file) + fuzzyResult.score;
+				if (ignoredFolder) {
+					score = score - 1000;
+				}
 				matchedFiles.push({
-					file:file,
+					file: file,
 					score: score,
 					position: positions
 				});
 			}
-
 		})
 
 		matchedFiles.sort((a, b) => b.score - a.score);
-		return matchedFiles;
+		return matchedFiles.splice(0, this.settings.maxResults);
 	}
 
 	lastOpenedDayScore(file: TFile) {
@@ -90,7 +129,6 @@ export default class SwitchFile extends Plugin {
 		}
 
 	}
-
 
 
 	// keep updated last opening timestamp
@@ -120,24 +158,38 @@ export default class SwitchFile extends Plugin {
 		let positions: number[] = []
 		text = text.toLowerCase().trim();
 		query = query.toLowerCase().trim();
+		//
+		let score = 0;
+		let gap = true;
 
 
 		while (t < text.length && q < query.length) {
 			if (text[t] === query[q]) {
 				q++
 				positions.push(t);
+				// adding score
+				if (gap && t > score) {
+					score = score + 100;
+				}
+			} else {
+				gap = true;
 			}
 			t++;
 		}
-
-
 		if (q === query.length) {
-			return positions;
-		} else {
-			return false
-		}
-	}
+			return {
+				positions: positions,
+				score: score
+			}
 
+		} else {
+			return {
+				positions: null,
+				score: 0
+			}
+		}
+
+	}
 
 
 	async focusFile(path: string) {
@@ -146,6 +198,15 @@ export default class SwitchFile extends Plugin {
 		if (currentLeaf && currentLeaf && targetFile instanceof TFile) {
 			await currentLeaf.openFile(targetFile, {active: true});
 		}
+	}
+
+	getCurrentOpenFilePath() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const path = view?.file?.path
+		if (path) {
+			return path
+		}
+		return null
 	}
 
 	onunload() {

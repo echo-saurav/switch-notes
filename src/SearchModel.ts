@@ -43,9 +43,9 @@ export class SearchModel extends SuggestModal<QueryFile> {
 
 	// Renders each suggestion item.
 	renderSuggestion(queryFile: QueryFile, el: HTMLElement) {
-
 		const title = el.createEl("div");
 		title.classList.add("search-container");
+		// this.buildHighlighted(queryFile.file.basename +" "+ queryFile.score, queryFile.position, title);
 		this.buildHighlighted(queryFile.file.basename, queryFile.position, title);
 	}
 
